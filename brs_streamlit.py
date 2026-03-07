@@ -190,7 +190,7 @@ def recommend_book_knn(pt, knn, book_name, n_values=11):
   return pd.DataFrame({"Book": titles, "Distance": dists})
 
 # SVD model helper
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def build_svd_model(merged_df, min_interactions=50, k_factors=15, test_size = 0.2,random_state = 42):
   users_interactions_count_df = merged_df.groupby(['book_title', 'user_id']).size().groupby('user_id').size()
   users_with_enough_df = users_interactions_count_df[users_interactions_count_df >= int(min_interactions)].reset_index()[['user_id']]
@@ -242,43 +242,44 @@ def recommend_svd_for_user(svd_obj, merged_df, user_ids, topn=10):
   recs = user_preds[~user_preds['book_title'].isin(already)].head(topn)
   return recs[['book_title', 'recStrength']]
 
-# TF-IDF content helper
-@st.cache_data(show_spinner=False)
-def build_tfidf_content_model(filtered_df, min_ratings=200):
-  df = filtered_df.copy()
-  if 'no_of_ratings' not in df.columns:
-    df['no_of_ratings'] = df.groupby('book_title')['book_rating'].transform('count')
+if False:
+  # TF-IDF content helper
+  @st.cache_data(show_spinner=False)
+  def build_tfidf_content_model(filtered_df, min_ratings=200):
+    df = filtered_df.copy()
+    if 'no_of_ratings' not in df.columns:
+      df['no_of_ratings'] = df.groupby('book_title')['book_rating'].transform('count')
 
-  df = df[df['no_of_ratings'] > int(min_ratings)].reset_index(drop=True)
-  if len(df) < 10:
-    return None
+    df = df[df['no_of_ratings'] > int(min_ratings)].reset_index(drop=True)
+    if len(df) < 10:
+      return None
 
-  vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 2), min_df=1, stop_words='english')
-  corpus = (df['book_title'].fillna("")).astype(str) + " " + df['book_author'].fillna("").astype(str)
-  tfidf_matrix = vectorizer.fit_transform(corpus)
-  cosine_sim = cosine_similarity(tfidf_matrix.astype(np.float32), tfidf_matrix.astype(np.float32))
-  return {'df':df, "cosine_similarity": cosine_sim}
+    vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 2), min_df=1, stop_words='english')
+    corpus = (df['book_title'].fillna("")).astype(str) + " " + df['book_author'].fillna("").astype(str)
+    tfidf_matrix = vectorizer.fit_transform(corpus)
+    cosine_sim = cosine_similarity(tfidf_matrix.astype(np.float32), tfidf_matrix.astype(np.float32))
+    return {'df':df, "cosine_similarity": cosine_sim}
 
 
-def recommend_tfidf(model_obj, book_name, topn=5):
-  df = model_obj['df']
-  cosine_sim = model_obj["cosine_sim"]
+  def recommend_tfidf(model_obj, book_name, topn=5):
+    df = model_obj['df']
+    cosine_sim = model_obj["cosine_sim"]
 
-  if book_name not in df['book_title'].values:
-    return None
+    if book_name not in df['book_title'].values:
+      return None
 
-  idx = int(df.index[df['book_title'] == book_name].tolist()[0])
-  sim_order = cosine_sim[idx].argsort()[::-1]
+    idx = int(df.index[df['book_title'] == book_name].tolist()[0])
+    sim_order = cosine_sim[idx].argsort()[::-1]
 
-  recs =[]
-  for i in sim_order:
-    title = df.loc[i, 'book_title']
-    if title != book_name and title not in recs:
-      recs.append(title)
-      if len(recs) == topn:
-        break
+    recs =[]
+    for i in sim_order:
+      title = df.loc[i, 'book_title']
+      if title != book_name and title not in recs:
+        recs.append(title)
+        if len(recs) == topn:
+          break
 
-  return pd.DataFrame({"Book": recs})
+    return pd.DataFrame({"Book": recs})
 
 
 #####################################################
@@ -509,7 +510,11 @@ with tab4:
           else:
             st.dataframe(recs)
 
-    else:
+  else:
+    st.markdown("Content-based (TF-IDF) selected")
+    st.info("Note: This method needs more storage.")
+
+    if False:
       st.markdown("### Content-based Recommender (TF-IDF on Title + Author)")
       min_ratings = st.slider("Min ratings per book (keep popular books)", 10, 1000, 20, step=10)
       topn = st.slider("Top-N recommendations", 3, 20, 5)

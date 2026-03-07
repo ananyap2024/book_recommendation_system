@@ -41,3 +41,10 @@ It performs the following steps:
 - Add rating visualizations
 - Deploy the app using **Streamlit Cloud**
 - Improve UI styling
+
+---
+
+# how to run
+- open anaconda prompt
+- run the command *streamlit run brs_streamlit.py*
+- it opens the online streamlit website

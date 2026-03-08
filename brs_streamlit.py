@@ -113,7 +113,7 @@ def build_merged_df(df_books, df_ratings, df_users):
   # handling outliers
   if 'age' in merged_df.columns:
     merged_df['age'] = pd.to_numeric(merged_df['age'])
-    merged_df.loc[(merged_df['age'] < 10) | (merged_df['age'] > 90)] = np.nan
+    merged_df.loc[(merged_df['age'] < 10) | (merged_df['age'] > 90), 'age'] = np.nan
 
     NullAges = int(merged_df['age'].isnull().sum())
     if NullAges > 0:
@@ -289,27 +289,28 @@ if False:
 st.sidebar.header("Data Input")
 st.sidebar.write("Upload Books.csv, Users.csv, Ratings.csv to proceed")
 
-books_file = st.sidebar.file_uploader("Upload Books.csv", type=['csv'])
-ratings_file = st.sidebar.file_uploader("Upload Ratings.csv", type=['csv'])
-users_file = st.sidebar.file_uploader("Upload Users.csv", type=['csv'])
+books_src = st.sidebar.file_uploader("Upload Books.csv", type=['csv'])
+ratings_src = st.sidebar.file_uploader("Upload Ratings.csv", type=['csv'])
+users_src = st.sidebar.file_uploader("Upload Users.csv", type=['csv'])
 
-st.sidebar.divider()
-use_local = st.sidebar.checkbox("Use Local CSVs fromn a folder (if not uploading)", value=False)
-local_path = st.sidebar.text_input("Local folder path (optional)", value="")
+if False:
+  st.sidebar.divider()
+  use_local = st.sidebar.checkbox("Use Local CSVs fromn a folder (if not uploading)", value=False)
+  local_path = st.sidebar.text_input("Local folder path (optional)", value="")
 
-def get_local_or_uploaded(uploaded, filename):
-  if uploaded is not None:
-    return uploaded
-  if use_local:
-    folder = local_path.strip() if local_path.strip() else "."
-    p = f"{folder}/{filename}"
-    if os.path.exists(p):
-      return p
-  return None
+  def get_local_or_uploaded(uploaded, filename):
+    if uploaded is not None:
+      return uploaded
+    if use_local:
+      folder = local_path.strip() if local_path.strip() else "."
+      p = f"{folder}/{filename}"
+      if os.path.exists(p):
+        return p
+    return None
 
-books_src = get_local_or_uploaded(books_file, 'Books.csv')
-ratings_src = get_local_or_uploaded(ratings_file, 'Ratings.csv')
-users_src = get_local_or_uploaded(users_file, 'Users.csv')
+  books_src = get_local_or_uploaded(books_file, 'Books.csv')
+  ratings_src = get_local_or_uploaded(ratings_file, 'Ratings.csv')
+  users_src = get_local_or_uploaded(users_file, 'Users.csv')
 
 if books_src is None or ratings_src is None or users_src is None:
   st.info("Please upload **Books.csv**, **Ratings.csv**, and **Users.csv** from the sidebar (or enable local loading).")
@@ -461,7 +462,7 @@ with tab4:
 
       if st.button("Recommend (Cosine)", type='primary'):
         recs = recommend_book_cosine(pt, sim, book_name, topn=topn)
-        if recs is not None:
+        if recs is None:
           st.warning("Book not found in pivot table")
         else:
           st.dataframe(recs)

@@ -190,7 +190,7 @@ def recommend_book_knn(pt, knn, book_name, n_values=11):
   return pd.DataFrame({"Book": titles, "Distance": dists})
 
 # SVD model helper
-@st.cache_resource(show_spinner=False)
+@st.cache_data(show_spinner=False)
 def build_svd_model(merged_df, min_interactions=50, k_factors=15, test_size = 0.2,random_state = 42):
   users_interactions_count_df = merged_df.groupby(['book_title', 'user_id']).size().groupby('user_id').size()
   users_with_enough_df = users_interactions_count_df[users_interactions_count_df >= int(min_interactions)].reset_index()[['user_id']]
@@ -200,15 +200,15 @@ def build_svd_model(merged_df, min_interactions=50, k_factors=15, test_size = 0.
     return math.log(1+x,2)
 
   interactions_full = interactions_selected.groupby(['book_title', 'user_id'])['book_rating'].sum().apply(smooth_user_preference).reset_index()
-  if len(interactions_full) < 20:
+  if len(interactions_full) < 10:
     return None
   le = preprocessing.LabelEncoder()
   le.fit(merged_df['book_title'].unique())
 
-  train, test = train_test_split(interactions_full, test_size=float(test_size), stratify=interactions_full['user_id'], random_state=int(random_state))
+  train_df, test_df = train_test_split(interactions_full, test_size=float(test_size), stratify=interactions_full['user_id'], random_state=int(random_state))
 
-  train_df = train.copy()
-  test_df = test.copy()
+  train_df = train_df.copy()
+  test_df = test_df.copy()
   train_df['book_title'] = le.transform(train_df['book_title'])
   test_df['book_title'] = le.transform(test_df['book_title'])
 
@@ -231,15 +231,15 @@ def recommend_svd_for_user(svd_obj, merged_df, user_ids, topn=10):
   le = svd_obj['le']
   preds_df = svd_obj['preds_df']
 
-  if user_ids not in preds_df.index:
+  if user_ids not in preds_df.columns:
     return None
 
   already = merged_df.loc[merged_df['user_id'] == user_ids, 'book_title'].dropna().astype(str).unique().tolist()
-  user_preds = preds_df.loc[user_ids].sort_values(ascending=False).reset_index()
+  user_preds = preds_df[user_ids].sort_values(ascending=False).reset_index()
   user_preds.columns = ['book_title_id', 'recStrength']
   user_preds['book_title'] = le.inverse_transform(user_preds['book_title_id'].astype(int))
 
-  recs = user_preds[~user_preds['book_title'].isin(already)].head(topn)
+  recs = user_preds[~user_preds['book_title'].isin(already)].head(int(topn))
   return recs[['book_title', 'recStrength']]
 
 if False:
@@ -501,15 +501,20 @@ with tab4:
       if svd_obj is None:
         st.error("Not enough data after filtering to build SVD model. Reduce thresholds or check dataset.")
       else:
-        user_list = sorted(list(set(svd_obj["preds_df"].columns.tolist())))
+            st.session_state['svd_obj'] = svd_obj
+            st.success("Model trained successfully!")
+
+    if st.session_state.get('svd_obj') is not None:
+        svd_obj = st.session_state['svd_obj']
+        user_list = sorted(svd_obj["preds_df"].columns.tolist())
         user_id = st.selectbox("Select a user_id (from trained users)", options=user_list)
 
         if st.button("Get recommendations for this user"):
-          recs = recommend_svd_for_user(svd_obj, merged_df, user_id, topn=topn)
-          if recs is None:
-            st.warning("User not found in predictions matrix")
-          else:
-            st.dataframe(recs)
+            recs = recommend_svd_for_user(svd_obj, merged_df, user_id, topn=topn)
+            if recs is None:
+                st.warning("User not found in predictions matrix")
+            else:
+                st.dataframe(recs)
 
   else:
     st.markdown("Content-based (TF-IDF) selected")

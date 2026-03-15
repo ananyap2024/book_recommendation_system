@@ -3,3 +3,6 @@ altair==4.2.2
 pandas
 numpy
 scikit-learn
+scipy
+matplotlib
+seaborn

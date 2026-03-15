@@ -4,5 +4,3 @@ scikit-learn
 streamlit
 matplotlib
 seaborn
-datetime
-os

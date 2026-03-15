@@ -118,3 +118,8 @@ Possible enhancements for this project:
 # 👩‍💻 Author
 
 Ananya Pappu
+
+---
+
+# Demo Link
+https://book-rec-sys.streamlit.app/
